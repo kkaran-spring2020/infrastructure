@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "Creating CloudFormation Stack"
+ aws cloudformation create-stack --profile dev --region us-east-1   --stack-name csye6225demo   --parameters ParameterKey=CidrBlock,ParameterValue=10.0.0.0/16 ParameterKey=VpcName,ParameterValue=myVPC ParameterKey=SubnetBlock1,ParameterValue=10.0.0.0/24 ParameterKey=SubnetBlock2,ParameterValue=10.0.1.0/24 ParameterKey=SubnetBlock3,ParameterValue=10.0.2.0/24 ParameterKey=AvailabilityZone1,ParameterValue=us-east-1a ParameterKey=AvailabilityZone2,ParameterValue=us-east-1b ParameterKey=AvailabilityZone3,ParameterValue=us-east-1c  --template-body file://networking.json
