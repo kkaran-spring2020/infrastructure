@@ -1,0 +1,119 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "My Cloud Formation",
+  "Parameters": {
+    "CidrBlock": { "Type": "String" },
+    "VpcName": { "Type": "String" },
+    "SubnetBlock1": { "Type": "String" },
+    "SubnetBlock2": { "Type": "String" },
+    "SubnetBlock3": { "Type": "String" },
+    "AvailabilityZone1": { "Type": "String" },
+    "AvailabilityZone2": { "Type": "String" },
+    "AvailabilityZone3": { "Type": "String" }
+  }, 
+ 
+  "Resources" : {
+    "CloudVPC" : {
+	    "Type" : "AWS::EC2::VPC",
+	    "Properties" : {
+	        "CidrBlock" : {"Ref" : "CidrBlock"},
+	        "Tags" : [ 
+			{
+				"Key" : "Name", 
+				"Value" : {"Ref" : "VpcName"}
+			} 
+			]
+	      }
+	    },
+		
+	"Subnet01" : {
+	    "Type" : "AWS::EC2::Subnet",
+	    "Properties" : {
+ 	        "AvailabilityZone" :{"Ref" : "AvailabilityZone1"},
+	        "VpcId" : { "Ref" : "CloudVPC" },
+	        "CidrBlock" : {"Ref" : "SubnetBlock1"},
+		"MapPublicIpOnLaunch" : true,
+	        "Tags" : [ {"Key" : "Name", "Value" : "Subnet01" } ]
+	      }
+	    },
+		
+	"Subnet02" : {
+	    "Type" : "AWS::EC2::Subnet",
+	    "Properties" : {
+		"AvailabilityZone" : {"Ref" : "AvailabilityZone2"},
+	        "VpcId" : { "Ref" : "CloudVPC" },
+	        "CidrBlock" : {"Ref" : "SubnetBlock2"},
+		"MapPublicIpOnLaunch" : true,
+	        "Tags" : [ {"Key" : "Name", "Value" : "Subnet02" } ]
+	      }
+	    },	
+		
+	"Subnet03" : {
+	    "Type" : "AWS::EC2::Subnet",
+	    "Properties" : {
+		"AvailabilityZone" : {"Ref" : "AvailabilityZone3"},
+	        "VpcId" : { "Ref" : "CloudVPC" },
+	        "CidrBlock" : {"Ref" : "SubnetBlock3"},
+		"MapPublicIpOnLaunch" : true,
+	        "Tags" : [ {"Key" : "Name", "Value" : "Subnet03" } ]
+	      }
+	    },	
+		
+	"myInternetGateway" : {
+	      "Type" : "AWS::EC2::InternetGateway",
+	      "Properties" : {
+	        "Tags" : [ {"Key" : "Name", "Value" : "myInternetGateway" } ]
+	      }
+	    },
+		
+	"AttachGateway" : {
+	       "Type" : "AWS::EC2::VPCGatewayAttachment",
+	       "Properties" : {
+	         "VpcId" : { "Ref" : "CloudVPC" },
+	         "InternetGatewayId" : { "Ref" : "myInternetGateway" }
+	       }
+	    },
+		
+	"MyRouteTable" : {
+	      "Type" : "AWS::EC2::RouteTable",
+	      "Properties" : {
+	        "VpcId" : {"Ref" : "CloudVPC"},
+	        "Tags" : [ {"Key" : "Name", "Value" : "csye6225_routeTable" } ]
+	      }
+	    },
+
+    "Subnet01Association" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+              "RouteTableId" : {"Ref" : "MyRouteTable"},
+              "SubnetId" :  {"Ref" : "Subnet01"} 
+            }
+          },
+
+    "Subnet02Association" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+              "RouteTableId" : {"Ref" : "MyRouteTable"},
+              "SubnetId" :  {"Ref" : "Subnet02"} 
+            }
+          },
+
+    "Subnet03Association" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties" : {
+              "RouteTableId" : {"Ref" : "MyRouteTable"},
+              "SubnetId" :  {"Ref" : "Subnet03"} 
+            }
+          },
+		
+	"CloudRoute" : {
+         "Type" : "AWS::EC2::Route",
+            "Properties" : {
+            "RouteTableId" : { "Ref" : "MyRouteTable" },
+            "DestinationCidrBlock" : "0.0.0.0/0",
+            "GatewayId" : { "Ref" : "myInternetGateway" }
+         }
+      }
+	
+  }
+}
