@@ -1,5 +1,7 @@
 # infrastructure
 
+- To create VPC, Subnets, Route table, Internet Gateway, EC2 Instance, RDS Instance, IAM Policy, IAM Role, S3 bucket and Security Groups for database servers and Application servers.  
+
 # Student Information
 
 ## Name: Karan	
@@ -10,11 +12,11 @@
 
 ## prerequisites: 
 
-- Template file i.e networking.json should be in the same directory as the shell scripts
+- Template file i.e application.json should be in the same directory as the shell scripts
 
 ## Deploy Instructions
 
-- Run the script using ./stack-creation.sh
+- Run the script using ./cloud_stack_creation.sh
 
 - After the stack is created run the script /stack-deletion.sh to delete the vpc
 
