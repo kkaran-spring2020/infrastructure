@@ -525,7 +525,7 @@
 				},
 				"ManagedPolicyName": "CircleCI-Upload-To-S3",
 				"Users": [
-					"circleci"
+					"circlci"
 				]
 			}
 		},
@@ -719,7 +719,7 @@
 				},
 				"ManagedPolicyName": "CircleCI-Code-Deploy",
 				"Users": [
-					"circleci"
+					"circlci"
 				]
 			}
 		},
@@ -776,7 +776,7 @@
 				},
 				"ManagedPolicyName": "circleci-ec2-ami",
 				"Users": [
-					"circleci"
+					"circlci"
 				]
 			}
 		},
