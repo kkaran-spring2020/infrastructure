@@ -364,6 +364,12 @@
 				"SubnetId": {
 					"Ref": "Subnet03"
 				},
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "CodeDeployDemo"
+					}
+				],
 				"BlockDeviceMappings": [
 					{
 						"DeviceName": "/dev/sda1",
