@@ -465,7 +465,8 @@
 											"arn:aws:s3:::",
 											{
 												"Ref": "CloudS3Bucket"
-											}
+											},
+											"/*"
 										]
 									]
 								}
