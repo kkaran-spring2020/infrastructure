@@ -50,13 +50,10 @@
 		"ApplicationName": {
 			"Type": "String"
 		},
-		"S3BUCKET_ARN": {
+		"S3BUCKETARN": {
 			"Type": "String"
 		},
 		"DeploymentGroup": {
-			"Type": "String"
-		},
-		"USER_IAM": {
 			"Type": "String"
 		}
 	},
@@ -531,7 +528,7 @@
 							"Effect": "Allow",
 							"Resource": [
 								{
-									"Fn::Sub": "arn:aws:s3:::${S3BUCKET_ARN}/*"
+									"Fn::Sub": "arn:aws:s3:::${S3BUCKETARN}/*"
 								},
 								"arn:aws:s3:::aws-codedeploy-us-east-1/*",
 								"arn:aws:s3:::aws-codedeploy-us-east-2/*"
@@ -541,7 +538,7 @@
 				},
 				"ManagedPolicyName": "CircleCI-Upload-To-S3",
 				"Users": [
-					"${USER_IAM}"
+					"circleci"
 				]
 			}
 		},
@@ -559,7 +556,7 @@
 							"Effect": "Allow",
 							"Resource": [
 								{
-									"Fn::Sub": "arn:aws:s3:::${S3BUCKET_ARN}/*"
+									"Fn::Sub": "arn:aws:s3:::${S3BUCKETARN}/*"
 								},
 								"arn:aws:s3:::aws-codedeploy-us-east-2/*",
 								"arn:aws:s3:::aws-codedeploy-us-east-1/*"
@@ -737,7 +734,7 @@
 				},
 				"ManagedPolicyName": "CircleCI-Code-Deploy",
 				"Users": [
-					"${USER_IAM}"
+					"circleci"
 				]
 			}
 		},
@@ -786,7 +783,7 @@
 							"Effect": "Allow",
 							"Resource": [
 								{
-									"Fn::Sub": "arn:aws:s3:::${S3BUCKET_ARN}/*"
+									"Fn::Sub": "arn:aws:s3:::${S3BUCKETARN}/*"
 								},
 								"arn:aws:s3:::aws-codedeploy-us-east-1/*",
 								"arn:aws:s3:::aws-codedeploy-us-east-2/*"
@@ -796,7 +793,7 @@
 				},
 				"ManagedPolicyName": "circleci-ec2-ami",
 				"Users": [
-					"${USER_IAM}"
+					"circleci"
 				]
 			}
 		},
