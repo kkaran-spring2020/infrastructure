@@ -50,7 +50,13 @@
 		"ApplicationName": {
 			"Type": "String"
 		},
+		"S3BUCKET_ARN": {
+			"Type": "String"
+		},
 		"DeploymentGroup": {
+			"Type": "String"
+		},
+		"USER_IAM": {
 			"Type": "String"
 		}
 	},
@@ -504,7 +510,8 @@
 				},
 				"Path": "/",
 				"ManagedPolicyArns": [
-					"arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+					"arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole",
+					"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 				],
 				"RoleName": "CodeDeployeROLE"
 			}
@@ -523,7 +530,9 @@
 							],
 							"Effect": "Allow",
 							"Resource": [
-								"arn:aws:s3:::codedeploy.dev.karan1908.me/*",
+								{
+									"Fn::Sub": "arn:aws:s3:::${S3BUCKET_ARN}/*"
+								},
 								"arn:aws:s3:::aws-codedeploy-us-east-1/*",
 								"arn:aws:s3:::aws-codedeploy-us-east-2/*"
 							]
@@ -532,7 +541,7 @@
 				},
 				"ManagedPolicyName": "CircleCI-Upload-To-S3",
 				"Users": [
-					"circlci"
+					"${USER_IAM}"
 				]
 			}
 		},
@@ -549,7 +558,9 @@
 							],
 							"Effect": "Allow",
 							"Resource": [
-								"arn:aws:s3:::codedeploy.dev.karan1908.me/*",
+								{
+									"Fn::Sub": "arn:aws:s3:::${S3BUCKET_ARN}/*"
+								},
 								"arn:aws:s3:::aws-codedeploy-us-east-2/*",
 								"arn:aws:s3:::aws-codedeploy-us-east-1/*"
 							]
@@ -726,7 +737,7 @@
 				},
 				"ManagedPolicyName": "CircleCI-Code-Deploy",
 				"Users": [
-					"circlci"
+					"${USER_IAM}"
 				]
 			}
 		},
@@ -774,7 +785,9 @@
 							],
 							"Effect": "Allow",
 							"Resource": [
-								"arn:aws:s3:::codedeploy.dev.karan1908.me/*",
+								{
+									"Fn::Sub": "arn:aws:s3:::${S3BUCKET_ARN}/*"
+								},
 								"arn:aws:s3:::aws-codedeploy-us-east-1/*",
 								"arn:aws:s3:::aws-codedeploy-us-east-2/*"
 							]
@@ -783,7 +796,7 @@
 				},
 				"ManagedPolicyName": "circleci-ec2-ami",
 				"Users": [
-					"circlci"
+					"${USER_IAM}"
 				]
 			}
 		},
