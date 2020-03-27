@@ -55,6 +55,9 @@
 		},
 		"DeploymentGroup": {
 			"Type": "String"
+		},
+		"DomainName": {
+			"Type": "String"
 		}
 	},
 	"Resources": {
@@ -267,21 +270,14 @@
 					},
 					{
 						"IpProtocol": "tcp",
-						"FromPort": "80",
-						"ToPort": "80",
-						"CidrIp": "0.0.0.0/0"
-					},
-					{
-						"IpProtocol": "tcp",
-						"FromPort": "443",
-						"ToPort": "443",
-						"CidrIp": "0.0.0.0/0"
-					},
-					{
-						"IpProtocol": "tcp",
 						"FromPort": "3007",
 						"ToPort": "3007",
-						"CidrIp": "0.0.0.0/0"
+						"SourceSecurityGroupId": {
+							"Fn::GetAtt": [
+								"WebAppSG",
+								"GroupId"
+							]
+						}
 					}
 				]
 			}
@@ -344,83 +340,6 @@
 						"Ref": "Subnet02"
 					}
 				]
-			}
-		},
-		"CloudEC2": {
-			"Type": "AWS::EC2::Instance",
-			"Properties": {
-				"ImageId": {
-					"Ref": "AmiImage"
-				},
-				"InstanceType": "t2.micro",
-				"SecurityGroupIds": [
-					{
-						"Ref": "ApplicationSG"
-					}
-				],
-				"KeyName": {
-					"Ref": "KeyId"
-				},
-				"IamInstanceProfile": {
-					"Ref": "ListS3BucketsInstanceProfile"
-				},
-				"SubnetId": {
-					"Ref": "Subnet03"
-				},
-				"Tags": [
-					{
-						"Key": "Name",
-						"Value": "CodeDeployDemo"
-					}
-				],
-				"BlockDeviceMappings": [
-					{
-						"DeviceName": "/dev/sda1",
-						"Ebs": {
-							"VolumeSize": {
-								"Ref": "EC2VolumeSize"
-							}
-						}
-					}
-				],
-				"UserData": {
-					"Fn::Base64": {
-						"Fn::Join": [
-							"",
-							[
-								"#cloud-boothook\n",
-								"#!/bin/sh\n",
-								"sudo echo export DB_HOSTNAME=",
-								{
-									"Fn::GetAtt": [
-										"RDSName",
-										"Endpoint.Address"
-									]
-								},
-								" >> etc/profile \n",
-								"sudo echo export DB_USERNAME=dbuser",
-								" >> etc/profile \n",
-								"sudo echo export DB_PASSWORD=password123",
-								" >> etc/profile \n",
-								"sudo echo export AWS_ACCESS_KEY=",
-								{
-									"Ref": "AWSACCESSKEY"
-								},
-								" >> etc/profile \n",
-								"sudo echo export AWS_SECRET_ACCESS_KEY=",
-								{
-									"Ref": "AWSSECRETKEY"
-								},
-								" >> etc/profile \n",
-								"sudo echo export S3BUCKET=",
-								{
-									"Ref": "CloudS3Bucket"
-								},
-								" >> etc/profile \n"
-							]
-						]
-					}
-				}
 			}
 		},
 		"ListS3BucketsInstanceProfile": {
@@ -817,7 +736,7 @@
 				"Ec2TagFilters": [
 					{
 						"Key": "Name",
-						"Value": "CodeDeployDemo",
+						"Value": "CSYE_6225_AutoScaling",
 						"Type": "KEY_AND_VALUE"
 					}
 				],
@@ -832,6 +751,343 @@
 						"CodeDeployeROLE",
 						"Arn"
 					]
+				}
+			}
+		},
+		"AutoScaling": {
+			"Type": "AWS::AutoScaling::AutoScalingGroup",
+			"Properties": {
+				"VPCZoneIdentifier": [
+					{
+						"Ref": "Subnet01"
+					},
+					{
+						"Ref": "Subnet02"
+					},
+					{
+						"Ref": "Subnet03"
+					}
+				],
+				"LaunchConfigurationName": {
+					"Ref": "Asglaunchconfig"
+				},
+				"TargetGroupARNs": [
+					{
+						"Ref": "ALBTargetGroup"
+					}
+				],
+				"MinSize": "2",
+				"MaxSize": "5",
+				"DesiredCapacity": "2",
+				"Tags": [
+					{
+						"PropagateAtLaunch": true,
+						"Key": "Name",
+						"Value": "CSYE_6225_AutoScaling"
+					}
+				]
+			}
+		},
+		"ALBTargetGroup": {
+			"Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+			"Properties": {
+				"Name": "ALBTargetGroup",
+				"Port": "3007",
+				"HealthCheckPort": "3007",
+				"Matcher": {
+					"HttpCode": "401,200"
+				},
+				"HealthCheckIntervalSeconds": 30,
+				"HealthCheckTimeoutSeconds": 20,
+				"HealthCheckPath": "/",
+				"HealthyThresholdCount": 3,
+				"Protocol": "HTTP",
+				"VpcId": {
+					"Ref": "CloudVPC"
+				},
+				"TargetGroupAttributes": [
+					{
+						"Value": "600",
+						"Key": "deregistration_delay.timeout_seconds"
+					}
+				],
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "CSYE_6225_AutoScaling"
+					}
+				]
+			}
+		},
+		"WebServerScaleUpPolicy": {
+			"Type": "AWS::AutoScaling::ScalingPolicy",
+			"Properties": {
+				"AdjustmentType": "ChangeInCapacity",
+				"AutoScalingGroupName": {
+					"Ref": "AutoScaling"
+				},
+				"Cooldown": "60",
+				"ScalingAdjustment": "1"
+			}
+		},
+		"WebServerScaleDownPolicy": {
+			"Type": "AWS::AutoScaling::ScalingPolicy",
+			"Properties": {
+				"AdjustmentType": "ChangeInCapacity",
+				"AutoScalingGroupName": {
+					"Ref": "AutoScaling"
+				},
+				"Cooldown": "60",
+				"ScalingAdjustment": "-1"
+			}
+		},
+		"CPUAlarmHigh": {
+			"Type": "AWS::CloudWatch::Alarm",
+			"Properties": {
+				"AlarmDescription": "Scale-up if CPU > 90% for 10 minutes",
+				"MetricName": "CPUUtilization",
+				"Namespace": "AWS/EC2",
+				"Statistic": "Average",
+				"Period": "300",
+				"EvaluationPeriods": "2",
+				"Threshold": "90",
+				"AlarmActions": [
+					{
+						"Ref": "WebServerScaleUpPolicy"
+					}
+				],
+				"Dimensions": [
+					{
+						"Name": "AutoScalingGroupName",
+						"Value": {
+							"Ref": "AutoScaling"
+						}
+					}
+				],
+				"ComparisonOperator": "GreaterThanThreshold"
+			}
+		},
+		"CPUAlarmLow": {
+			"Type": "AWS::CloudWatch::Alarm",
+			"Properties": {
+				"AlarmDescription": "Scale-down if CPU < 70% for 10 minutes",
+				"MetricName": "CPUUtilization",
+				"Namespace": "AWS/EC2",
+				"Statistic": "Average",
+				"Period": "300",
+				"EvaluationPeriods": "2",
+				"Threshold": "70",
+				"AlarmActions": [
+					{
+						"Ref": "WebServerScaleDownPolicy"
+					}
+				],
+				"Dimensions": [
+					{
+						"Name": "AutoScalingGroupName",
+						"Value": {
+							"Ref": "AutoScaling"
+						}
+					}
+				],
+				"ComparisonOperator": "LessThanThreshold"
+			}
+		},
+		"Asglaunchconfig": {
+			"Type": "AWS::AutoScaling::LaunchConfiguration",
+			"Properties": {
+				"AssociatePublicIpAddress": "true",
+				"IamInstanceProfile": {
+					"Ref": "ListS3BucketsInstanceProfile"
+				},
+				"ImageId": {
+					"Ref": "AmiImage"
+				},
+				"InstanceType": "t2.micro",
+				"KeyName": {
+					"Ref": "KeyId"
+				},
+				"LaunchConfigurationName": "Asglaunchconfig",
+				"SecurityGroups": [
+					{
+						"Ref": "ApplicationSG"
+					}
+				],
+				"BlockDeviceMappings": [
+					{
+						"DeviceName": "/dev/sda1",
+						"Ebs": {
+							"VolumeSize": {
+								"Ref": "EC2VolumeSize"
+							}
+						}
+					}
+				],
+				"UserData": {
+					"Fn::Base64": {
+						"Fn::Join": [
+							"",
+							[
+								"#cloud-boothook\n",
+								"#!/bin/sh\n",
+								"sudo echo export DB_HOSTNAME=",
+								{
+									"Fn::GetAtt": [
+										"RDSName",
+										"Endpoint.Address"
+									]
+								},
+								" >> etc/profile \n",
+								"sudo echo export DB_USERNAME=dbuser",
+								" >> etc/profile \n",
+								"sudo echo export DB_PASSWORD=password123",
+								" >> etc/profile \n",
+								"sudo echo export AWS_ACCESS_KEY=",
+								{
+									"Ref": "AWSACCESSKEY"
+								},
+								" >> etc/profile \n",
+								"sudo echo export AWS_SECRET_ACCESS_KEY=",
+								{
+									"Ref": "AWSSECRETKEY"
+								},
+								" >> etc/profile \n",
+								"sudo echo export S3BUCKET=",
+								{
+									"Ref": "CloudS3Bucket"
+								},
+								" >> etc/profile \n"
+							]
+						]
+					}
+				}
+			}
+		},
+		"WebAppSG": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupName": "WebAppSG",
+				"GroupDescription": "Access to ports 22, 80, 443 and 3007 for load balancer",
+				"VpcId": {
+					"Ref": "CloudVPC"
+				},
+				"SecurityGroupIngress": [
+					{
+						"IpProtocol": "tcp",
+						"FromPort": "80",
+						"ToPort": "80",
+						"CidrIp": "0.0.0.0/0"
+					},
+					{
+						"IpProtocol": "tcp",
+						"FromPort": "22",
+						"ToPort": "22",
+						"CidrIp": "0.0.0.0/0"
+					},
+					{
+						"IpProtocol": "tcp",
+						"FromPort": "3007",
+						"ToPort": "3007",
+						"CidrIp": "0.0.0.0/0"
+					},
+					{
+						"IpProtocol": "tcp",
+						"FromPort": "443",
+						"ToPort": "443",
+						"CidrIp": "0.0.0.0/0"
+					}
+				]
+			}
+		},
+		"myLoadBalancer": {
+			"Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+			"Properties": {
+				"IpAddressType": "ipv4",
+				"Name": "myLoadBalancer",
+				"Scheme": "internet-facing",
+				"SecurityGroups": [
+					{
+						"Ref": "WebAppSG"
+					}
+				],
+				"Subnets": [
+					{
+						"Ref": "Subnet01"
+					},
+					{
+						"Ref": "Subnet02"
+					},
+					{
+						"Ref": "Subnet03"
+					}
+				],
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "CSYE_6225_AutoScaling"
+					}
+				],
+				"Type": "application"
+			}
+		},
+		"Listener": {
+			"Type": "AWS::ElasticLoadBalancingV2::Listener",
+			"Properties": {
+				"DefaultActions": [
+					{
+						"TargetGroupArn": {
+							"Ref": "ALBTargetGroup"
+						},
+						"Type": "forward"
+					}
+				],
+				"LoadBalancerArn": {
+					"Ref": "myLoadBalancer"
+				},
+				"Port": "80",
+				"Protocol": "HTTP"
+			}
+		},
+		"DNSRoute53": {
+			"Type": "AWS::Route53::RecordSet",
+			"Properties": {
+				"HostedZoneName": {
+					"Fn::Join": [
+						"",
+						[
+							{
+								"Ref": "DomainName"
+							},
+							"."
+						]
+					]
+				},
+				"Comment": "DNS name targeted to my LoadBalancer.",
+				"Name": {
+					"Fn::Join": [
+						"",
+						[
+							{
+								"Ref": "DomainName"
+							},
+							"."
+						]
+					]
+				},
+				"Type": "A",
+				"AliasTarget": {
+					"HostedZoneId": {
+						"Fn::GetAtt": [
+							"myLoadBalancer",
+							"CanonicalHostedZoneID"
+						]
+					},
+					"DNSName": {
+						"Fn::GetAtt": [
+							"myLoadBalancer",
+							"DNSName"
+						]
+					}
 				}
 			}
 		}
