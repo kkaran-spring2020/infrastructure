@@ -930,6 +930,8 @@
 							[
 								"#cloud-boothook\n",
 								"#!/bin/sh\n",
+								"cd /etc/profile.d\n",
+								"sudo touch vars.sh\n",
 								"sudo echo export DB_HOSTNAME=",
 								{
 									"Fn::GetAtt": [
@@ -937,26 +939,26 @@
 										"Endpoint.Address"
 									]
 								},
-								" >> etc/profile \n",
+								" >> vars.sh\n",
 								"sudo echo export DB_USERNAME=dbuser",
-								" >> etc/profile \n",
+								" >> vars.sh\n",
 								"sudo echo export DB_PASSWORD=password123",
-								" >> etc/profile \n",
+								" >> vars.sh\n",
 								"sudo echo export AWS_ACCESS_KEY=",
 								{
 									"Ref": "AWSACCESSKEY"
 								},
-								" >> etc/profile \n",
+								" >> vars.sh\n",
 								"sudo echo export AWS_SECRET_ACCESS_KEY=",
 								{
 									"Ref": "AWSSECRETKEY"
 								},
-								" >> etc/profile \n",
+								" >> vars.sh\n",
 								"sudo echo export S3BUCKET=",
 								{
 									"Ref": "CloudS3Bucket"
 								},
-								" >> etc/profile \n"
+								" >> vars.sh\n"
 							]
 						]
 					}
@@ -1089,6 +1091,156 @@
 						]
 					}
 				}
+			}
+		},
+		"MyQueue": {
+			"Properties": {
+				"QueueName": "MyQueue"
+			},
+			"Type": "AWS::SQS::Queue"
+		},
+		"SNSTopic": {
+			"Type": "AWS::SNS::Topic",
+			"Properties": {
+				"DisplayName": "SNSTopic",
+				"Subscription": [
+					{
+						"Endpoint": {
+							"Fn::GetAtt": [
+								"LambdaFunction",
+								"Arn"
+							]
+						},
+						"Protocol": "lambda"
+					}
+				]
+			}
+		},
+		"LambdaFunction": {
+			"Type": "AWS::Lambda::Function",
+			"Properties": {
+				"Code": {
+					"ZipFile": {
+						"Fn::Join": [
+							"\n",
+							[
+								"exports.emailService = function (event, context, callback){ console.log('Hello'); callback(null); }"
+							]
+						]
+					}
+				},
+				"Handler": "index.handler",
+				"Environment": {
+					"Variables": {
+						"DOMAIN_NAME": {
+							"Fn::Sub": "${DomainName}"
+						}
+					}
+				},
+				"Role": {
+					"Fn::GetAtt": [
+						"LambdaExecutionRole",
+						"Arn"
+					]
+				},
+				"Runtime": "nodejs12.x",
+				"FunctionName": "csye6225-spring2020-lambda",
+				"MemorySize": 180,
+				"Timeout": 180
+			}
+		},
+		"LambdaResourcePolicy": {
+			"Type": "AWS::Lambda::Permission",
+			"Properties": {
+				"FunctionName": {
+					"Ref": "LambdaFunction"
+				},
+				"Principal": "sns.amazonaws.com",
+				"Action": "lambda:InvokeFunction",
+				"SourceArn": {
+					"Ref": "SNSTopic"
+				}
+			}
+		},
+		"myDynamoDB": {
+			"Type": "AWS::DynamoDB::Table",
+			"Properties": {
+				"AttributeDefinitions": [
+					{
+						"AttributeName": "id",
+						"AttributeType": "S"
+					}
+				],
+				"KeySchema": [
+					{
+						"AttributeName": "id",
+						"KeyType": "HASH"
+					}
+				],
+				"ProvisionedThroughput": {
+					"ReadCapacityUnits": "5",
+					"WriteCapacityUnits": "10"
+				},
+				"TableName": "csye6225",
+				"TimeToLiveSpecification": {
+					"AttributeName": "passwordTokenExpiry",
+					"Enabled": "true"
+				}
+			}
+		},
+		"LambdaExecutionRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"Service": [
+									"lambda.amazonaws.com"
+								]
+							},
+							"Action": [
+								"sts:AssumeRole"
+							]
+						}
+					]
+				},
+				"ManagedPolicyArns": [
+					"arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+					"arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess",
+					"arn:aws:iam::aws:policy/AmazonSESFullAccess",
+					"arn:aws:iam::aws:policy/AmazonSNSFullAccess",
+					"arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+				],
+				"RoleName": "LambdaExecutionRole"
+			}
+		}
+	},
+	"Outputs": {
+		"QueueName": {
+			"Description": "The name of the queue",
+			"Value": {
+				"Fn::GetAtt": [
+					"MyQueue",
+					"QueueName"
+				]
+			}
+		},
+		"QueueURL": {
+			"Description": "The URL of the queue",
+			"Value": {
+				"Ref": "MyQueue"
+			}
+		},
+		"QueueARN": {
+			"Description": "The ARN of the queue",
+			"Value": {
+				"Fn::GetAtt": [
+					"MyQueue",
+					"Arn"
+				]
 			}
 		}
 	}
