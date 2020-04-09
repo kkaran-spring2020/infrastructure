@@ -21,3 +21,14 @@
 - After the stack is created run the script /stack-deletion.sh to delete the vpc
 
 - To ensure the complete deletion of vpc, run the script wait-stack-deletion.sh
+
+## Import SSH using AWS cli
+
+- .PEM File for certificate is stored as certificate.pem
+
+- .PEM File for certificateBundle is stored as certificateBundle.pem
+
+- .PEM File for private key is stored as privatekey.pem
+- To import SSL using AWS CLI use the following command is placed in one run
+aws acm import-certificate --certificate file://Certificate.pem --certificate-chain file://CertificateBundle.pem --private-key file://pivatekey.pem
+
