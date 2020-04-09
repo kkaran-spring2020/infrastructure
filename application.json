@@ -277,7 +277,7 @@
 						"ToPort": "3007",
 						"SourceSecurityGroupId": {
 							"Fn::GetAtt": [
-								"WebAppSG",
+								"LoadbalancerSG",
 								"GroupId"
 							]
 						}
@@ -994,11 +994,11 @@
 				}
 			}
 		},
-		"WebAppSG": {
+		"LoadbalancerSG": {
 			"Type": "AWS::EC2::SecurityGroup",
 			"Properties": {
-				"GroupName": "WebAppSG",
-				"GroupDescription": "Access to ports 22, 80, 443 and 3007 for load balancer",
+				"GroupName": "LoadbalancerSG",
+				"GroupDescription": "Access to ports 22, 443 for load balancer",
 				"VpcId": {
 					"Ref": "CloudVPC"
 				},
@@ -1026,7 +1026,7 @@
 				"Scheme": "internet-facing",
 				"SecurityGroups": [
 					{
-						"Ref": "WebAppSG"
+						"Ref": "LoadbalancerSG"
 					}
 				],
 				"Subnets": [
