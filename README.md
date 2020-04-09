@@ -28,7 +28,12 @@
 
 - .PEM File for certificateBundle is stored as certificateBundle.pem
 
+- Used following commands to generate key and csr file:
+    - openssl genrsa -out privatekey.key 2048
+    - openssl req -new -key privatekey.key -out server.csr
+
 - .PEM File for private key is stored as privatekey.pem
+
 - To import SSL using AWS CLI use the following command is placed in one run
 aws acm import-certificate --certificate file://Certificate.pem --certificate-chain file://CertificateBundle.pem --private-key file://pivatekey.pem
 
