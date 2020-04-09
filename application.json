@@ -32,12 +32,6 @@
 		"KeyId": {
 			"Type": "String"
 		},
-		"AWSACCESSKEY": {
-			"Type": "String"
-		},
-		"AWSSECRETKEY": {
-			"Type": "String"
-		},
 		"RDSVolumeSize": {
 			"Type": "String"
 		},
@@ -57,6 +51,15 @@
 			"Type": "String"
 		},
 		"DomainName": {
+			"Type": "String"
+		},
+		"RDSUser": {
+			"Type": "String"
+		},
+		"RDSPass": {
+			"Type": "String"
+		},
+		"CertificateName": {
 			"Type": "String"
 		}
 	},
@@ -274,7 +277,7 @@
 						"ToPort": "3007",
 						"SourceSecurityGroupId": {
 							"Fn::GetAtt": [
-								"WebAppSG",
+								"LoadbalancerSG",
 								"GroupId"
 							]
 						}
@@ -310,8 +313,12 @@
 				},
 				"Engine": "MySQL",
 				"DBInstanceClass": "db.t3.micro",
-				"MasterUsername": "dbuser",
-				"MasterUserPassword": "password123",
+				"MasterUsername": {
+					"Ref": "RDSUser"
+				},
+				"MasterUserPassword": {
+					"Ref": "RDSPass"
+				},
 				"MultiAZ": "false",
 				"DBInstanceIdentifier": "csye6225-spring",
 				"DBSubnetGroupName": {
@@ -325,7 +332,21 @@
 					{
 						"Ref": "DatabaseSG"
 					}
-				]
+				],
+				"DBParameterGroupName": {
+					"Ref": "RDSGroup"
+				},
+				"StorageEncrypted": "True"
+			}
+		},
+		"RDSGroup": {
+			"Type": "AWS::RDS::DBParameterGroup",
+			"Properties": {
+				"Description":"RDS GROUP",
+				"Family": "mysql5.7",
+				"Parameters": {
+					"performance_schema": 1
+				}
 			}
 		},
 		"RDSSubnetGroup": {
@@ -427,7 +448,9 @@
 				"Path": "/",
 				"ManagedPolicyArns": [
 					"arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole",
-					"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+					"arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+					"arn:aws:iam::aws:policy/AmazonSNSFullAccess",
+					"arn:aws:iam::aws:policy/AmazonSQSFullAccess"
 				],
 				"RoleName": "CodeDeployeROLE"
 			}
@@ -931,7 +954,7 @@
 								"#cloud-boothook\n",
 								"#!/bin/sh\n",
 								"cd /etc/profile.d\n",
-								"sudo touch vars.sh\n",
+								"sudo touch custom.sh\n",
 								"sudo echo export DB_HOSTNAME=",
 								{
 									"Fn::GetAtt": [
@@ -939,57 +962,51 @@
 										"Endpoint.Address"
 									]
 								},
-								" >> vars.sh\n",
-								"sudo echo export DB_USERNAME=dbuser",
-								" >> vars.sh\n",
-								"sudo echo export DB_PASSWORD=password123",
-								" >> vars.sh\n",
-								"sudo echo export AWS_ACCESS_KEY=",
+								" >> custom.sh\n",
+								"sudo echo export DB_USERNAME=",
 								{
-									"Ref": "AWSACCESSKEY"
+									"Ref": "RDSUser"
 								},
-								" >> vars.sh\n",
-								"sudo echo export AWS_SECRET_ACCESS_KEY=",
+								" >> custom.sh\n",
+								"sudo echo export DB_PASSWORD=",
 								{
-									"Ref": "AWSSECRETKEY"
+									"Ref": "RDSPass"
 								},
-								" >> vars.sh\n",
+								" >> custom.sh\n",
 								"sudo echo export S3BUCKET=",
 								{
 									"Ref": "CloudS3Bucket"
 								},
-								" >> vars.sh\n"
+								" >> custom.sh\n",
+								"sudo echo export SQS_URL=",
+								{
+									"Ref": "MyQueue"
+								},
+								" >> custom.sh\n",
+								"sudo echo export SNS_ARN=",
+								{
+									"Ref": "SNSTopic"
+								},
+								" >> custom.sh\n"
 							]
 						]
 					}
 				}
 			}
 		},
-		"WebAppSG": {
+		"LoadbalancerSG": {
 			"Type": "AWS::EC2::SecurityGroup",
 			"Properties": {
-				"GroupName": "WebAppSG",
-				"GroupDescription": "Access to ports 22, 80, 443 and 3007 for load balancer",
+				"GroupName": "LoadbalancerSG",
+				"GroupDescription": "Access to ports 22, 443 for load balancer",
 				"VpcId": {
 					"Ref": "CloudVPC"
 				},
 				"SecurityGroupIngress": [
 					{
 						"IpProtocol": "tcp",
-						"FromPort": "80",
-						"ToPort": "80",
-						"CidrIp": "0.0.0.0/0"
-					},
-					{
-						"IpProtocol": "tcp",
 						"FromPort": "22",
 						"ToPort": "22",
-						"CidrIp": "0.0.0.0/0"
-					},
-					{
-						"IpProtocol": "tcp",
-						"FromPort": "3007",
-						"ToPort": "3007",
 						"CidrIp": "0.0.0.0/0"
 					},
 					{
@@ -1009,7 +1026,7 @@
 				"Scheme": "internet-facing",
 				"SecurityGroups": [
 					{
-						"Ref": "WebAppSG"
+						"Ref": "LoadbalancerSG"
 					}
 				],
 				"Subnets": [
@@ -1046,8 +1063,15 @@
 				"LoadBalancerArn": {
 					"Ref": "myLoadBalancer"
 				},
-				"Port": "80",
-				"Protocol": "HTTP"
+				"Port": "443",
+				"Protocol": "HTTPS",
+				"Certificates": [
+					{
+						"CertificateArn": {
+							"Fn::Sub": "${CertificateName}"
+						}
+					}
+				]
 			}
 		},
 		"DNSRoute53": {
@@ -1118,6 +1142,7 @@
 		},
 		"LambdaFunction": {
 			"Type": "AWS::Lambda::Function",
+			"DependsOn": "LambdaExecutionRole",
 			"Properties": {
 				"Code": {
 					"ZipFile": {
@@ -1129,12 +1154,13 @@
 						]
 					}
 				},
-				"Handler": "index.handler",
+				"Handler": "lambdaFunction.handler",
 				"Environment": {
 					"Variables": {
 						"DOMAIN_NAME": {
-							"Fn::Sub": "${DomainName}"
-						}
+							"Ref": "DomainName"
+						},
+						"TABLENAME": "csye6225"
 					}
 				},
 				"Role": {
@@ -1151,9 +1177,13 @@
 		},
 		"LambdaResourcePolicy": {
 			"Type": "AWS::Lambda::Permission",
+			"DependsOn": "SNSTopic",
 			"Properties": {
 				"FunctionName": {
-					"Ref": "LambdaFunction"
+					"Fn::GetAtt": [
+						"LambdaFunction",
+						"Arn"
+					]
 				},
 				"Principal": "sns.amazonaws.com",
 				"Action": "lambda:InvokeFunction",
@@ -1215,32 +1245,6 @@
 					"arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 				],
 				"RoleName": "LambdaExecutionRole"
-			}
-		}
-	},
-	"Outputs": {
-		"QueueName": {
-			"Description": "The name of the queue",
-			"Value": {
-				"Fn::GetAtt": [
-					"MyQueue",
-					"QueueName"
-				]
-			}
-		},
-		"QueueURL": {
-			"Description": "The URL of the queue",
-			"Value": {
-				"Ref": "MyQueue"
-			}
-		},
-		"QueueARN": {
-			"Description": "The ARN of the queue",
-			"Value": {
-				"Fn::GetAtt": [
-					"MyQueue",
-					"Arn"
-				]
 			}
 		}
 	}
